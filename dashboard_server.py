@@ -94,11 +94,43 @@ class BotState:
     def recalc_totals(self):
         self.total_gained_exp = sum(acc.get("gained_exp", 0) for acc in self.accounts.values())
 
+
 bot_state = BotState()
 
-async def start_web_dashboard(host: str = "0.0.0.0", port: int = 20335):
+
+async def index_handler(request):
+    """Simple status page so Render detects an open port."""
+    html = f"""
+    <html>
+    <head><title>FreeFire Bot Dashboard</title></head>
+    <body style="background:#111;color:#0f0;font-family:monospace;padding:20px;">
+        <h1>⚡ FreeFire Level Up Bot</h1>
+        <p>Status: <b style="color:lime;">RUNNING</b></p>
+        <p>Uptime: {int(time.time() - bot_state.start_time)}s</p>
+        <p>Accounts: {len(bot_state.accounts)}</p>
+        <p>Total Matches: {bot_state.total_matches}</p>
+        <p>Total Gained EXP: {bot_state.total_gained_exp}</p>
+        <h3>Accounts:</h3>
+        <pre>{json.dumps(bot_state.accounts, indent=2)}</pre>
+        <h3>Recent Logs:</h3>
+        <pre>{json.dumps(bot_state.logs[-50:], indent=2)}</pre>
+    </body>
+    </html>
+    """
+    return web.Response(text=html, content_type='text/html')
+
+
+async def start_web_dashboard(host: str = "0.0.0.0", port: int = None):
+    """Start web dashboard. Uses PORT env var for Render compatibility."""
+    if port is None:
+        port = int(os.environ.get("PORT", 10000))
+
     app = web.Application()
+    app.router.add_get("/", index_handler)
+    app.router.add_get("/health", lambda r: web.json_response({"status": "ok"}))
+
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, host, port)
     await site.start()
+    print(f"[DASHBOARD] Web server started on http://{host}:{port}", flush=True)
