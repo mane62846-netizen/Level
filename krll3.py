@@ -56,11 +56,13 @@ except ImportError:
         def update_status(self, *args, **kwargs): pass
         def increment_match(self, *args, **kwargs): pass
     bot_state = DummyBotState()
-    async def start_web_dashboard(host="0.0.0.0", port=20335): pass
+    async def start_web_dashboard(host="0.0.0.0", port=None): pass
 
 # ==================== CONFIGURATION ====================
 WEB_HOST = "0.0.0.0"
-WEB_PORT = 20335
+# ✅ FIX: Render dynamically assigns PORT. Default to 10000 if not set.
+WEB_PORT = int(os.environ.get("PORT", 10000))
+
 ACCOUNTS_FILE = "accounts.json"
 PROXIES_FILE = "proxies.txt"
 TOKEN_CACHE_FILE = "token_cache.json"
@@ -1246,8 +1248,11 @@ async def main():
     print_colored("  Failover Threshold: Search #10 -> Next Rotating Proxy", Colors.WHITE)
     print_colored("=" * 60, Colors.CYAN)
 
-    try: await start_web_dashboard(host=WEB_HOST, port=WEB_PORT)
-    except Exception: pass
+    # ✅ FIX: Pass port from WEB_PORT (which reads from PORT env var)
+    try:
+        await start_web_dashboard(host=WEB_HOST, port=WEB_PORT)
+    except Exception as e:
+        print_error(f"Dashboard start failed: {e}")
 
     accounts = load_accounts()
     print_info(f"Loaded {len(accounts)} account(s) and {len(proxy_pool.proxies)} proxy IP(s).")
